@@ -97,12 +97,6 @@ def JunctionBox.main(fileDir, jbName, iterationOffset, baseWidth, baseDepth, bas
       
     end
     hole_punch.subtract(box)
-    
-    comp = model.entities.add_group(group).to_component
-    comp.name = jbName
-    compPath = File.join(fileDir, jbName + ".skp")
-    compdef = comp.definition
-    compdef.save_as(compPath)
     model.commit_operation    
   
   end
@@ -115,8 +109,8 @@ def JunctionBox.main(fileDir, jbName, iterationOffset, baseWidth, baseDepth, bas
     model = Sketchup.active_model
     model.start_operation('Create JB Lid', true)
 
-    group = model.active_entities.add_group
-    entities = group.entities  
+    #group = model.active_entities.add_group
+    #entities = group.entities  
     widthOffset = (baseWidth-boxWidth) / 2
     depthOffset = (baseDepth-boxDepth) / 2
     points = [
@@ -139,14 +133,18 @@ def JunctionBox.main(fileDir, jbName, iterationOffset, baseWidth, baseDepth, bas
 
     face = entities.add_face(points)
     face.pushpull(-lidHeight)
-    comp = model.entities.add_group(group).to_component
-    comp.name = jbName + "_Lid"
-    compPath = File.join(fileDir, jbName + "_Lid" + ".skp")
-    compdef = comp.definition
-    compdef.save_as(compPath)
+    #comp = model.entities.add_group(group).to_component
+    #comp.name = jbName + "_Lid"
+    #compPath = File.join(fileDir, jbName + "_Lid" + ".skp")
+    #compdef = comp.definition
+    #compdef.save_as(compPath)
     model.commit_operation  
   end
-
+  comp = model.entities.add_group(group).to_component
+  comp.name = jbName
+  compPath = File.join(fileDir, jbName + ".skp")
+  compdef = comp.definition
+  compdef.save_as(compPath)
 
 end
 
