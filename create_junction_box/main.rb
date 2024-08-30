@@ -157,6 +157,7 @@ file = UI.openpanel('CSV File', 'c:\\')
 table = CSV.read(file)
 boxNum = table.length
 iterationOffset = 0
+fileFormat = UI.inputbox(["Which format is your file in? \n1: \n2: \n3:"])
 
 pathName = file.to_s
 basename = File.basename(file, ".csv").to_s
