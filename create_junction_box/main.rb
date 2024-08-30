@@ -4,7 +4,7 @@ require 'csv'
 #Namespace
 module JunctionBox 
 
-def JunctionBox.main(jbName, iterationOffset, baseWidth, baseDepth, baseHeight, boxWidth, boxDepth, boxHeight, boxThickness, lidHoleWidth, lidHoleDepth, lidHeight, holeValues)
+def JunctionBox.main(fileDir, jbName, iterationOffset, baseWidth, baseDepth, baseHeight, boxWidth, boxDepth, boxHeight, boxThickness, lidHoleWidth, lidHoleDepth, lidHeight, holeValues)
 
   # Make Base
   model = Sketchup.active_model
@@ -97,13 +97,17 @@ def JunctionBox.main(jbName, iterationOffset, baseWidth, baseDepth, baseHeight, 
       
     end
     hole_punch.subtract(box)
-
+    
+    comp = model.entities.add_group(group).to_component
+    comp.name = jbName
+    compPath = File.join(fileDir, jbName + ".skp")
+    compdef = comp.definition
+    compdef.save_as(compPath)
     model.commit_operation    
   
   end
     
     
-
 
   
   # Make Lid
@@ -112,7 +116,6 @@ def JunctionBox.main(jbName, iterationOffset, baseWidth, baseDepth, baseHeight, 
     model.start_operation('Create JB Lid', true)
 
     group = model.active_entities.add_group
-    group.name = jbName + "_Lid"
     entities = group.entities  
     widthOffset = (baseWidth-boxWidth) / 2
     depthOffset = (baseDepth-boxDepth) / 2
@@ -136,8 +139,14 @@ def JunctionBox.main(jbName, iterationOffset, baseWidth, baseDepth, baseHeight, 
 
     face = entities.add_face(points)
     face.pushpull(-lidHeight)
+    comp = model.entities.add_group(group).to_component
+    comp.name = jbName + "_Lid"
+    compPath = File.join(fileDir, jbName + "_Lid" + ".skp")
+    compdef = comp.definition
+    compdef.save_as(compPath)
     model.commit_operation  
   end
+
 
 end
 
@@ -147,12 +156,17 @@ cmd = UI::Command.new("Batch Create CSV") {
 
 
 file = UI.openpanel('CSV File', 'c:\\')
-
-
-#file = File.join(__dir__, "junctionBox.csv")
 table = CSV.read(file)
 boxNum = table.length
 iterationOffset = 0
+
+pathName = file.to_s
+basename = File.basename(file, ".csv").to_s
+pathName.slice!(File.basename(file).to_s)
+fileDir = pathName + basename
+unless File.directory?(fileDir)
+  Dir.mkdir(fileDir)
+end
 
 for i in 1..boxNum do
 
@@ -182,7 +196,7 @@ for i in 1..boxNum do
       holeValues = [[table[i][11+(n*4)].to_f, table[i][12+(n*4)].to_f, table[i][13+(n*4)].to_f, table[i][14+(n*4)].to_f]].unshift(*holeValues)
     end
   end
-  main(jbName, iterationOffset, baseWidth, baseDepth, baseHeight, boxWidth, boxDepth, boxHeight, boxThickness, lidHoleWidth, lidHoleDepth, lidHeight, holeValues)
+  main(fileDir, jbName, iterationOffset, baseWidth, baseDepth, baseHeight, boxWidth, boxDepth, boxHeight, boxThickness, lidHoleWidth, lidHoleDepth, lidHeight, holeValues)
   iterationOffset = iterationOffset + baseWidth + 36
 
 end
