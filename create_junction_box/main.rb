@@ -200,7 +200,7 @@ for i in 1..boxNum do
 end
 }
 
-icon = File.join(__dir__, 'icon.jpg')
+icon = File.join(__dir__, 'icon.png')
 cmd.small_icon = icon
 cmd.large_icon = icon
 cmd.tooltip = "Batch Create CSV"
