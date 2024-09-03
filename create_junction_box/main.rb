@@ -17,7 +17,11 @@ def JunctionBox.extrudeRect(x1, y1, x2, y2, z, extrudeDepth, rectGroup)
 end
 
 # Main junction box creation function
-def JunctionBox.main(fileDir, jbName, iterationOffset, baseWidth, baseDepth, baseHeight, boxWidth, boxDepth, boxHeight, boxThickness, lidHoleWidth, lidHoleDepth, lidHeight, holeValues)
+def JunctionBox.main(fileDir, jbName, xIterationOffset, yIterationOffset, 
+                    baseWidth, baseDepth, baseHeight, 
+                    boxWidth, boxDepth, boxHeight, boxThickness, 
+                    lidHoleWidth, lidHoleDepth, lidHeight, 
+                    holeValues)
 
   # Make Base
   model = Sketchup.active_model
@@ -28,7 +32,10 @@ def JunctionBox.main(fileDir, jbName, iterationOffset, baseWidth, baseDepth, bas
   entities = $group.entities  
   $box = entities.add_group
   if baseWidth != 0 && baseDepth != 0 && baseHeight != 0  
-    extrudeRect(iterationOffset, 0, baseWidth + iterationOffset, baseDepth, 0, -baseHeight, $box)
+    extrudeRect(xIterationOffset, 0 + yIterationOffset, 
+                baseWidth + xIterationOffset, 
+                baseDepth + yIterationOffset, 
+                0, -baseHeight, $box)
   else
     baseWidth = boxWidth
     baseDepth = boxDepth
@@ -42,10 +49,14 @@ def JunctionBox.main(fileDir, jbName, iterationOffset, baseWidth, baseDepth, bas
     depthOffset = (baseDepth-boxDepth) / 2
     
     # Box outer rectangle
-    extrudeRect(widthOffset + iterationOffset,depthOffset,widthOffset + boxWidth + iterationOffset,depthOffset + boxDepth,baseHeight,boxHeight, $box)
+    extrudeRect(widthOffset + xIterationOffset,depthOffset + yIterationOffset,
+                widthOffset + boxWidth + xIterationOffset,depthOffset + boxDepth + yIterationOffset,
+                baseHeight,boxHeight, $box)
 
     # Remove box inner rectangle
-    extrudeRect(widthOffset + boxThickness + iterationOffset,depthOffset + boxThickness,widthOffset + boxWidth - boxThickness + iterationOffset,depthOffset + boxDepth - boxThickness,baseHeight + boxHeight,-boxHeight, $box)
+    extrudeRect(widthOffset + boxThickness + xIterationOffset,depthOffset + boxThickness + yIterationOffset,
+                widthOffset + boxWidth - boxThickness + xIterationOffset,depthOffset + boxDepth - boxThickness + yIterationOffset,
+                baseHeight + boxHeight,-boxHeight, $box)
 
     # Add Pipe Holes
     hole_punch = entities.add_group
@@ -61,22 +72,22 @@ def JunctionBox.main(fileDir, jbName, iterationOffset, baseWidth, baseDepth, bas
       # 0 deg wall
       if (holeAngle >= 0 && holeAngle <= 45) || (holeAngle >= 315 && holeAngle <= 360) 
         angleOffset = (1.5 * boxThickness) * Math.tan(theta)
-        center_point = Geom::Point3d.new(widthOffset + (boxWidth / 2) - angleOffset + holeOffset + iterationOffset,depthOffset - boxThickness, baseHeight + holeUp + (holeHeight / 2))    
+        center_point = Geom::Point3d.new(widthOffset + (boxWidth / 2) - angleOffset + holeOffset + xIterationOffset,depthOffset - boxThickness + yIterationOffset, baseHeight + holeUp + (holeHeight / 2))    
       
       # 90 deg wall
       elsif holeAngle > 45 && holeAngle <= 135
         angleOffset = (1.5 * boxThickness) * Math.tan(theta - (Math::PI / 2))
-        center_point = Geom::Point3d.new(widthOffset - boxThickness + iterationOffset,depthOffset + (boxDepth / 2) + angleOffset - holeOffset, baseHeight + holeUp + (holeHeight / 2))    
+        center_point = Geom::Point3d.new(widthOffset - boxThickness + xIterationOffset,depthOffset + (boxDepth / 2) + angleOffset - holeOffset + yIterationOffset, baseHeight + holeUp + (holeHeight / 2))    
 
       # 180 deg wall
       elsif holeAngle > 135 && holeAngle <= 225
         angleOffset = (1.5 * boxThickness) * Math.tan(theta)
-        center_point = Geom::Point3d.new(widthOffset + (boxWidth / 2) + angleOffset - holeOffset + iterationOffset,depthOffset + boxDepth + boxThickness, baseHeight + holeUp + (holeHeight / 2))  
+        center_point = Geom::Point3d.new(widthOffset + (boxWidth / 2) + angleOffset - holeOffset + xIterationOffset,depthOffset + boxDepth + boxThickness + yIterationOffset, baseHeight + holeUp + (holeHeight / 2))  
 
       # 270 deg wall
       elsif holeAngle > 225 && holeAngle < 315
         angleOffset = (1.5 * boxThickness) * Math.tan(theta - (Math::PI / 2))
-        center_point = Geom::Point3d.new(widthOffset + boxWidth + boxThickness + iterationOffset,depthOffset + (boxDepth / 2) - angleOffset + holeOffset, baseHeight + holeUp + (holeHeight / 2))      
+        center_point = Geom::Point3d.new(widthOffset + boxWidth + boxThickness + xIterationOffset,depthOffset + (boxDepth / 2) - angleOffset + holeOffset + yIterationOffset, baseHeight + holeUp + (holeHeight / 2))      
 
       end
 
@@ -103,13 +114,17 @@ def JunctionBox.main(fileDir, jbName, iterationOffset, baseWidth, baseDepth, bas
     depthOffset = (baseDepth-boxDepth) / 2
 
     # full lid rectangle
-    extrudeRect(widthOffset + iterationOffset,depthOffset,widthOffset + boxWidth + iterationOffset,depthOffset + boxDepth,baseHeight + boxHeight,lidHeight,$group)
+    extrudeRect(widthOffset + xIterationOffset,depthOffset + yIterationOffset,
+                widthOffset + boxWidth + xIterationOffset,depthOffset + boxDepth + yIterationOffset,
+                baseHeight + boxHeight,lidHeight,$group)
 
     lidWidthOffset = ((boxWidth - (2 * boxThickness)) - lidHoleWidth) / 2
     lidDepthOffset = ((boxDepth - (2 * boxThickness)) - lidHoleDepth)
 
     # remove lid hole
-    extrudeRect(widthOffset + boxThickness + lidWidthOffset + iterationOffset,depthOffset + boxThickness + lidDepthOffset,widthOffset + boxWidth - boxThickness - lidWidthOffset + iterationOffset,depthOffset + boxDepth - boxThickness,baseHeight + boxHeight, -lidHeight, $group)
+    extrudeRect(widthOffset + boxThickness + lidWidthOffset + xIterationOffset,depthOffset + boxThickness + lidDepthOffset + yIterationOffset,
+                widthOffset + boxWidth - boxThickness - lidWidthOffset + xIterationOffset,depthOffset + boxDepth - boxThickness + yIterationOffset,
+                baseHeight + boxHeight, -lidHeight, $group)
   end
 
   # create and save component
@@ -128,7 +143,6 @@ file = UI.openpanel('CSV File', 'c:\\')
 #fileFormat = UI.inputbox(["Which format is your file in? \n1: \n2: \n3:"])
 table = CSV.read(file)
 boxNum = table.length
-iterationOffset = 0
 # Create component save directory
 pathName = file.to_s
 basename = File.basename(file, ".csv").to_s
@@ -137,6 +151,9 @@ fileDir = pathName + basename
 unless File.directory?(fileDir)
   Dir.mkdir(fileDir)
 end
+
+xIterationOffset = 0
+yIterationOffset = 0
 
 # Create each box
 for i in 1..boxNum do
@@ -169,9 +186,17 @@ for i in 1..boxNum do
   end
 
   # Make junction box
-  main(fileDir, jbName, iterationOffset, baseWidth, baseDepth, baseHeight, boxWidth, boxDepth, boxHeight, boxThickness, lidHoleWidth, lidHoleDepth, lidHeight, holeValues)
+  main(fileDir, jbName, xIterationOffset, yIterationOffset, 
+        baseWidth, baseDepth, baseHeight, 
+        boxWidth, boxDepth, boxHeight, boxThickness, 
+        lidHoleWidth, lidHoleDepth, lidHeight, 
+        holeValues)
   
-  iterationOffset = iterationOffset + baseWidth + 36
+  xIterationOffset = xIterationOffset + baseWidth + 36
+  if i % 10 == 0
+    xIterationOffset = 0
+    yIterationOffset = yIterationOffset + baseDepth + 72
+  end
 
 end
 }
