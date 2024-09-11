@@ -66,65 +66,28 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
     # Remove box inner rectangle
     extrudeRect(widthOffset + boxThickness + xIterationOffset, depthOffset + boxThickness + yIterationOffset,
                 widthOffset + boxWidth - boxThickness + xIterationOffset, depthOffset + boxDepth - boxThickness + yIterationOffset,
-                baseHeight + boxHeight + elevationOffset, -boxHeight, $box)
-    # Add Pipe Holes
-    # hole_punch = entities.add_group
-    # for i in 0..(holeValues.length - 1) do    
-
-    #   holeAngle = holeValues[i][0].to_f
-    #   holeUp = holeValues[i][1].to_f
-    #   holeOffset = holeValues[i][2].to_f
-    #   holeHeight = holeValues[i][3].to_f    
-      
-    #   theta = holeAngle * Math::PI / 180
-      
-    #   # 0 deg wall
-    #   if (holeAngle >= 0 && holeAngle <= 45) || (holeAngle >= 315 && holeAngle <= 360) 
-    #     angleOffset = (1.5 * boxThickness) * Math.tan(theta)
-    #     center_point = Geom::Point3d.new(widthOffset + (boxWidth / 2) - angleOffset + holeOffset + xIterationOffset,depthOffset - boxThickness + yIterationOffset, baseHeight + holeUp + (holeHeight / 2))    
-      
-    #   # 90 deg wall
-    #   elsif holeAngle > 45 && holeAngle <= 135
-    #     angleOffset = (1.5 * boxThickness) * Math.tan(theta - (Math::PI / 2))
-    #     center_point = Geom::Point3d.new(widthOffset - boxThickness + xIterationOffset,depthOffset + (boxDepth / 2) + angleOffset - holeOffset + yIterationOffset, baseHeight + holeUp + (holeHeight / 2))    
-
-    #   # 180 deg wall
-    #   elsif holeAngle > 135 && holeAngle <= 225
-    #     angleOffset = (1.5 * boxThickness) * Math.tan(theta)
-    #     center_point = Geom::Point3d.new(widthOffset + (boxWidth / 2) + angleOffset - holeOffset + xIterationOffset,depthOffset + boxDepth + boxThickness + yIterationOffset, baseHeight + holeUp + (holeHeight / 2))  
-
-    #   # 270 deg wall
-    #   elsif holeAngle > 225 && holeAngle < 315
-    #     angleOffset = (1.5 * boxThickness) * Math.tan(theta - (Math::PI / 2))
-    #     center_point = Geom::Point3d.new(widthOffset + boxWidth + boxThickness + xIterationOffset,depthOffset + (boxDepth / 2) - angleOffset + holeOffset + yIterationOffset, baseHeight + holeUp + (holeHeight / 2))      
-
-    #   end
-
-    #   normal_vector = Geom::Vector3d.new(Math.sin(theta),Math.cos(theta),0)
-    #   radius = (holeHeight / 2)
-      
-    #   # Create solid pipes
-    #   hole_outer = hole_punch.entities.add_circle(center_point, normal_vector, radius)
-    #   face = hole_punch.entities.add_face(hole_outer)
-    #   face.pushpull(4 * boxThickness)
-    # end
-    # Remove pipe hole from box
-    # hole_punch.subtract($box)  
+                baseHeight + boxHeight + elevationOffset, -boxHeight, $box)  
   end
     
   $hole_punch = entities.add_group
+  # $pipe_punch = entities.add_group
+
+  
   for i in 0..(holeValues.length - 1) do 
     pipeAngle = holeValues[i][0].to_f
     holeUp = holeValues[i][1].to_f
     holeOffsetX = holeValues[i][2].to_f
     holeOffsetY = holeValues[i][3].to_f
     holeDiameter = holeValues[i][4].to_f 
+    pipeInvert = holeValues[i][5].to_f
+    pipeDiameter = holeValues[i][6].to_f
 
     # Calculate the center point coordinates of the pipe
     theta = pipeAngle * Math::PI / 180
 
-#    if holeOffsetX == 0 && holeOffsetY == 0
-    if holeOffsetY == 0 # Top or Bottom wall
+    # if holeOffsetX == 0 && holeOffsetY == 0
+    # Top or Bottom wall
+    if holeOffsetY == 0 
       #edge point x value
       if holeOffsetX < 0 # offset from right wall
         xEdge = xIterationOffset + widthOffset + boxWidth + holeOffsetX
@@ -150,27 +113,113 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
       xCenter = xEdge + (Math.sin(alpha) * (holeDiameter / 2))
       yCenter = yEdge + (Math.cos(alpha) * (holeDiameter / 2))
       zCenter = elevationOffset + baseHeight + holeUp + (holeDiameter / 2)
-      
-      
+      extrudeDepth = boxThickness * 3
+      pipeExtrudeOffset = extrudeDepth
+      pipeExtrudeDepth = pipeExtrudeOffset + 3
 
-
-    elsif holeOffsetX == 0 # Left or Right wall
+      # yChange = yEdge - yCenter
+      # distToWall = yChange / Math.cos(theta - Math::PI)
+      # distThroughWall = boxThickness / Math.cos(theta - Math::PI)
+      # distPastWall = 3 / Math.cos(theta - Math::PI)
+      # pipeExtrudeOffset = distToWall + distThroughWall
+      # pipeExtrudeDepth = distToWall + distThroughWall + distPastWall
+    
+    # Left or Right wall
+    elsif holeOffsetX == 0 
+      #edge point y value
       if holeOffsetY < 0 # offset from Top wall
-
+        yEdge = yIterationOffset + depthOffset + boxWidth + holeOffsetY
+        dir = -90
       elsif holeOffsetY > 0 # offset from Bottom wall
-
+        yEdge = yIterationOffset + depthOffset + holeOffsetY
+        dir = 90
       else # 0 offset
-        
+        yEdge = yIterationOffset + depthOffset + boxThickness 
+        dir = 90
       end
-    else # corner
 
+      #edge point x value
+      if pipeAngle < 180 # right wall
+        xEdge = xIterationOffset + widthOffset + boxWidth
+        alpha = (pipeAngle - dir) * Math::PI / 180
+      elsif pipeAngle > 179 # left wall
+        xEdge = xIterationOffset + widthOffset
+        alpha = (pipeAngle + dir) * Math::PI / 180
+      end
+
+      #find center point from edge point
+      xCenter = xEdge + (Math.sin(alpha) * (holeDiameter / 2))
+      yCenter = yEdge + (Math.cos(alpha) * (holeDiameter / 2))
+      zCenter = elevationOffset + baseHeight + holeUp + (holeDiameter / 2)
+      extrudeDepth = boxThickness * 3
+      pipeExtrudeOffset = extrudeDepth
+      pipeExtrudeDepth = pipeExtrudeOffset + 3
+      
+      xChange = xEdge - xCenter
+      
+    # corner
+    else 
+      # edge points
+      if holeOffsetX > 0  && holeOffsetY > 0 # bottom left corner
+        xEdge1 = xIterationOffset + widthOffset + holeOffsetX
+        yEdge1 = yIterationOffset + depthOffset + boxThickness
+        xEdge2 = xIterationOffset + widthOffset + boxThickness
+        yEdge2 = yIterationOffset + depthOffset + holeOffsetY
+      elsif holeOffsetX < 0 && holeOffsetY > 0 # bottom right corner
+        xEdge1 = xIterationOffset + widthOffset + boxWidth + holeOffsetX
+        yEdge1 = yIterationOffset + depthOffset + boxThickness
+        xEdge2 = xIterationOffset + widthOffset + boxWidth - boxThickness
+        yEdge2 = yIterationOffset + depthOffset + holeOffsetY
+      elsif holeOffsetX < 0 && holeOffsetY < 0 # top right corner
+        xEdge1 = xIterationOffset + widthOffset + boxWidth + holeoffsetX
+        yEdge1 = yIterationOffset + depthOffset + boxDepth - boxThickness
+        xEdge2 = xIterationOffset + widthOffset + boxWidth - boxThickness
+        yEdge2 = yIterationOffset + depthOffset + boxWidth + holeOffsetY
+      elsif holeOffsetX > 0 && holeOffsetY < 0 # top left corner
+        xEdge1 = xIterationOffset + widthOffset + holeOffsetX
+        yEdge1 = yIterationOffset + depthOffset + boxDepth - boxThickness
+        xEdge2 = xIterationOffset + widthOffset + boxThickness
+        yEdge2 = yIterationOffset + depthOffset + boxDepth + holeOffsetY
+      end
+
+      #find center point from 2 edge points
+      xCenter = (xEdge1 + xEdge2) / 2
+      yCenter = (yEdge1 + yEdge2) / 2
+      zCenter = elevationOffset + baseHeight + holeUp + (holeDiameter / 2)
+      extrudeDepth = boxThickness * -6
+      pipeExtrudeOffset = -extrudeDepth
+      pipeExtrudeDepth = pipeExtrudeOffset
     end
 
-    extrudeCyl(xCenter, yCenter, zCenter, holeDiameter, theta, (boxThickness * 3), $hole_punch)
+    # create pipe
 
+    #hole in box
+    extrudeCyl(xCenter, yCenter, zCenter, holeDiameter, theta, extrudeDepth, $hole_punch)
+
+    #make pipe
+
+
+    xCenterPipe1 = xCenter + (Math.sin(theta + Math::PI) * boxThickness)
+    yCenterPipe1 = yCenter + (Math.cos(theta + Math::PI) * boxThickness)
+
+    xCenterPipe2 = xCenterPipe1 + (Math.sin(theta) * pipeExtrudeOffset)
+    yCenterPipe2 = yCenterPipe1 + (Math.cos(theta) * pipeExtrudeOffset)
+
+    zCenterPipe = (pipeInvert * 12) + (pipeDiameter / 2)
+
+    $make_pipe = entities.add_group
+    # extrudeCyl(xCenterPipe1, yCenterPipe1, zCenterPipe, (pipeDiameter + 2), theta, pipeExtrudeDepth, $pipe)
+    extrudeCyl(xCenterPipe2, yCenterPipe2, zCenterPipe + 0.001, pipeDiameter, theta, pipeExtrudeDepth, $make_pipe)
+
+    # create pipe invert line
+    pipeInvertPoint1 = Geom::Point3d.new(xCenterPipe1, yCenterPipe1, (pipeInvert * 12))
+    pipeInvertPoint2 = Geom::Point3d.new(xCenterPipe2, yCenterPipe2, (pipeInvert * 12))
+    $make_pipe.entities.add_line(pipeInvertPoint1, pipeInvertPoint2)
   end
 
   $hole_punch.subtract($box)
+
+
 
   # Make Lid
   if lidHoleWidth != 0 && lidHoleDepth != 0 && lidHeight != 0   ### -- TODO: Deal with blank cells -- ###
@@ -241,15 +290,14 @@ for i in 1..(boxNum - 1) do
   lidHoleDepth = table[i][10].to_f
   lidHeight = table[i][11].to_f
   
-  holeInputs = 5
+  holeInputs = 7
   numHoles = (table[i].length - 12) / holeInputs
   holeValues = []
   for n in 0..(numHoles-1) do
-    unless table[i][12+(n*holeInputs)].to_f == 0 && table[i][13+(n*holeInputs)].to_f == 0 && table[i][14+(n*holeInputs)].to_f == 0 && table[i][15+(n*holeInputs)].to_f == 0 && table[i][16+(n*holeInputs)].to_f == 0
-      holeValues = [[table[i][12+(n*holeInputs)].to_f, table[i][13+(n*holeInputs)].to_f, table[i][14+(n*holeInputs)].to_f, table[i][15+(n*holeInputs)].to_f, table[i][16+(n*holeInputs)].to_f]].unshift(*holeValues)
+    unless table[i][12+(n*holeInputs)].to_f == 0 && table[i][13+(n*holeInputs)].to_f == 0 && table[i][14+(n*holeInputs)].to_f == 0 && table[i][15+(n*holeInputs)].to_f == 0 && table[i][16+(n*holeInputs)].to_f == 0 && table[i][17+(n*holeInputs)].to_f == 0 && table[i][18+(n*holeInputs)].to_f == 0
+      holeValues = [[table[i][12+(n*holeInputs)].to_f, table[i][13+(n*holeInputs)].to_f, table[i][14+(n*holeInputs)].to_f, table[i][15+(n*holeInputs)].to_f, table[i][16+(n*holeInputs)].to_f, table[i][17+(n*holeInputs)].to_f, table[i][18+(n*holeInputs)].to_f]].unshift(*holeValues)
     end
   end
-
   # Make junction box
   main(fileDir, jbName, topElevation, xIterationOffset, yIterationOffset, 
         baseWidth, baseDepth, baseHeight, 
