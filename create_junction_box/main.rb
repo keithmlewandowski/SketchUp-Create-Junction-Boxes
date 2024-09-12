@@ -86,7 +86,7 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
     theta = pipeAngle * Math::PI / 180
 
     # if holeOffsetX == 0 && holeOffsetY == 0
-    # Top or Bottom wall
+    ### Top or Bottom wall
     if holeOffsetY == 0 
       #edge point x value
       if holeOffsetX < 0 # offset from right wall
@@ -104,9 +104,11 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
       if pipeAngle < 90 || pipeAngle > 270 # top wall
         yEdge = yIterationOffset + depthOffset + boxWidth
         alpha = (pipeAngle + dir) * Math::PI / 180
+        sign = -1
       elsif pipeAngle > 89 && pipeAngle < 271 #bottom wall
         yEdge = yIterationOffset + depthOffset
         alpha = (pipeAngle - dir) * Math::PI / 180
+        sign = 1
       end
 
       #find center point from edge point
@@ -117,14 +119,15 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
       pipeExtrudeOffset = extrudeDepth
       pipeExtrudeDepth = pipeExtrudeOffset + 3
 
-      # yChange = yEdge - yCenter
-      # distToWall = yChange / Math.cos(theta - Math::PI)
-      # distThroughWall = boxThickness / Math.cos(theta - Math::PI)
-      # distPastWall = 3 / Math.cos(theta - Math::PI)
-      # pipeExtrudeOffset = distToWall + distThroughWall
-      # pipeExtrudeDepth = distToWall + distThroughWall + distPastWall
+      pipeLineOut = boxThickness * 3
+
+      yChange = yEdge - yCenter
+      distToWall = yChange / Math.cos(theta - Math::PI)
+      distThroughWall = boxThickness / Math.cos(theta - Math::PI)
+      distPastWall = 3 / Math.cos(theta - Math::PI)
+      pipeLineIn = (distToWall + distThroughWall + distPastWall) * sign
     
-    # Left or Right wall
+    ### Left or Right wall
     elsif holeOffsetX == 0 
       #edge point y value
       if holeOffsetY < 0 # offset from Top wall
@@ -142,9 +145,11 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
       if pipeAngle < 180 # right wall
         xEdge = xIterationOffset + widthOffset + boxWidth
         alpha = (pipeAngle - dir) * Math::PI / 180
+        sign = -1
       elsif pipeAngle > 179 # left wall
         xEdge = xIterationOffset + widthOffset
         alpha = (pipeAngle + dir) * Math::PI / 180
+        sign = 1
       end
 
       #find center point from edge point
@@ -155,9 +160,16 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
       pipeExtrudeOffset = extrudeDepth
       pipeExtrudeDepth = pipeExtrudeOffset + 3
       
+      pipeLineOut = boxThickness * 3
+
       xChange = xEdge - xCenter
       
-    # corner
+      distToWall = xChange / Math.cos((Math::PI / 2) - (theta - Math::PI))
+      distThroughWall = boxThickness / Math.cos((Math::PI / 2) - (theta - Math::PI))
+      distPastWall = 3 / Math.cos((Math::PI / 2) - (theta - Math::PI))
+      pipeLineIn = (distToWall + distThroughWall + distPastWall) * sign
+
+    ### corner
     else 
       # edge points
       if holeOffsetX > 0  && holeOffsetY > 0 # bottom left corner
@@ -189,6 +201,10 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
       extrudeDepth = boxThickness * -6
       pipeExtrudeOffset = -extrudeDepth
       pipeExtrudeDepth = pipeExtrudeOffset
+
+      pipeLineOut = boxThickness * 6
+      pipeLineIn = 3
+
     end
 
     # create pipe
@@ -197,19 +213,17 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
     extrudeCyl(xCenter, yCenter, zCenter, holeDiameter, theta, extrudeDepth, $hole_punch)
 
     #make pipe
+    xCenterPipe1 = xCenter + (Math.sin(theta + Math::PI) * pipeLineIn)
+    yCenterPipe1 = yCenter + (Math.cos(theta + Math::PI) * pipeLineIn)
 
-
-    xCenterPipe1 = xCenter + (Math.sin(theta + Math::PI) * boxThickness)
-    yCenterPipe1 = yCenter + (Math.cos(theta + Math::PI) * boxThickness)
-
-    xCenterPipe2 = xCenterPipe1 + (Math.sin(theta) * pipeExtrudeOffset)
-    yCenterPipe2 = yCenterPipe1 + (Math.cos(theta) * pipeExtrudeOffset)
+    xCenterPipe2 = xCenter + (Math.sin(theta) * pipeLineOut)
+    yCenterPipe2 = yCenter + (Math.cos(theta) * pipeLineOut)
 
     zCenterPipe = (pipeInvert * 12) + (pipeDiameter / 2)
 
     $make_pipe = entities.add_group
     # extrudeCyl(xCenterPipe1, yCenterPipe1, zCenterPipe, (pipeDiameter + 2), theta, pipeExtrudeDepth, $pipe)
-    extrudeCyl(xCenterPipe2, yCenterPipe2, zCenterPipe + 0.001, pipeDiameter, theta, pipeExtrudeDepth, $make_pipe)
+    # extrudeCyl(xCenterPipe2, yCenterPipe2, zCenterPipe + 0.001, pipeDiameter, theta, pipeExtrudeDepth, $make_pipe)
 
     # create pipe invert line
     pipeInvertPoint1 = Geom::Point3d.new(xCenterPipe1, yCenterPipe1, (pipeInvert * 12))
@@ -243,6 +257,11 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
                 widthOffset + boxWidth - boxThickness - lidWidthOffset + xIterationOffset, depthOffset + boxDepth - boxThickness + yIterationOffset,
                 baseHeight + boxHeight + elevationOffset, -lidHeight, $group)
   end
+
+  elevationLine = entities.add_group
+  linePoint1 = Geom::Point3d.new(xIterationOffset, yIterationOffset, 0)
+  linePoint2 = Geom::Point3d.new(xIterationOffset + 1, yIterationOffset, 0)
+  elevationLine.entities.add_line(linePoint1, linePoint2)
 
   # create and save component
   comp = model.entities.add_group($group).to_component
