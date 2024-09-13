@@ -1,5 +1,6 @@
 require 'sketchup.rb'
 require 'csv'
+require 'win32ole'
 
 module JunctionBox 
 
@@ -39,7 +40,7 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
   model = Sketchup.active_model
   #model.start_operation('Create JB Box', true)
   $group = model.active_entities.add_group
-  $group.name = jbName
+  $group.name = jbName.to_s
   entities = $group.entities  
   $box = entities.add_group
 
@@ -105,10 +106,14 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
         yEdge = yIterationOffset + depthOffset + boxWidth
         alpha = (pipeAngle + dir) * Math::PI / 180
         sign = -1
+        yInWall = yIterationOffset + depthOffset + boxDepth - boxThickness - 3
+        yOutWall = yIterationOffset + depthOffset + boxDepth + 24
       elsif pipeAngle > 89 && pipeAngle < 271 #bottom wall
         yEdge = yIterationOffset + depthOffset
         alpha = (pipeAngle - dir) * Math::PI / 180
         sign = 1
+        yInWall = yIterationOffset + depthOffset + boxThickness + 3
+        yOutWall = yIterationOffset + depthOffset - 24
       end
 
       #find center point from edge point
@@ -120,12 +125,15 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
       pipeExtrudeDepth = pipeExtrudeOffset + 3
 
       pipeLineOut = boxThickness * 3
+      pipeLineIn = boxThickness * 3
 
-      yChange = yEdge - yCenter
-      distToWall = yChange / Math.cos(theta - Math::PI)
-      distThroughWall = boxThickness / Math.cos(theta - Math::PI)
-      distPastWall = 3 / Math.cos(theta - Math::PI)
-      pipeLineIn = (distToWall + distThroughWall + distPastWall) * sign
+      # point of pipe inside box
+      m = Math.tan(theta)
+      xInWall = ((yInWall - yCenter) / m) + xCenter
+
+      # point of pipe outside box
+      xOutWall = ((yOutWall - yCenter) / m) + xCenter
+
     
     ### Left or Right wall
     elsif holeOffsetX == 0 
@@ -146,10 +154,14 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
         xEdge = xIterationOffset + widthOffset + boxWidth
         alpha = (pipeAngle - dir) * Math::PI / 180
         sign = -1
+        xInWall = xIterationOffset + widthOffset + boxWidth - boxThickness - 3
+        xOutWall = xIterationOffset + widthOffset + boxWidth + 24
       elsif pipeAngle > 179 # left wall
         xEdge = xIterationOffset + widthOffset
         alpha = (pipeAngle + dir) * Math::PI / 180
         sign = 1
+        xInWall = xIterationOffset + widthOffset + boxThickness + 3
+        xOutWall = xIterationOffset + widthOffset - 24
       end
 
       #find center point from edge point
@@ -161,13 +173,16 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
       pipeExtrudeDepth = pipeExtrudeOffset + 3
       
       pipeLineOut = boxThickness * 3
+      pipeLineIn = boxThickness * 3
 
-      xChange = xEdge - xCenter
-      
-      distToWall = xChange / Math.cos((Math::PI / 2) - (theta - Math::PI))
-      distThroughWall = boxThickness / Math.cos((Math::PI / 2) - (theta - Math::PI))
-      distPastWall = 3 / Math.cos((Math::PI / 2) - (theta - Math::PI))
-      pipeLineIn = (distToWall + distThroughWall + distPastWall) * sign
+
+      # point of pipe inside box
+      m = Math.tan(theta)
+      yInWall = (m * (xInWall - xCenter)) + yCenter
+
+      # point of pipe outside box
+      yOutWall = (m * (xOutWall - xCenter)) + yCenter
+
 
     ### corner
     else 
@@ -177,21 +192,25 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
         yEdge1 = yIterationOffset + depthOffset + boxThickness
         xEdge2 = xIterationOffset + widthOffset + boxThickness
         yEdge2 = yIterationOffset + depthOffset + holeOffsetY
+        yOutWall = yIterationOffset + depthOffset - 24
       elsif holeOffsetX < 0 && holeOffsetY > 0 # bottom right corner
         xEdge1 = xIterationOffset + widthOffset + boxWidth + holeOffsetX
         yEdge1 = yIterationOffset + depthOffset + boxThickness
         xEdge2 = xIterationOffset + widthOffset + boxWidth - boxThickness
         yEdge2 = yIterationOffset + depthOffset + holeOffsetY
+        yOutWall = yIterationOffset + depthOffset - 24
       elsif holeOffsetX < 0 && holeOffsetY < 0 # top right corner
         xEdge1 = xIterationOffset + widthOffset + boxWidth + holeoffsetX
         yEdge1 = yIterationOffset + depthOffset + boxDepth - boxThickness
         xEdge2 = xIterationOffset + widthOffset + boxWidth - boxThickness
         yEdge2 = yIterationOffset + depthOffset + boxWidth + holeOffsetY
+        yOutWall = yIterationOffset + depthOffset + boxDepth + 24
       elsif holeOffsetX > 0 && holeOffsetY < 0 # top left corner
         xEdge1 = xIterationOffset + widthOffset + holeOffsetX
         yEdge1 = yIterationOffset + depthOffset + boxDepth - boxThickness
         xEdge2 = xIterationOffset + widthOffset + boxThickness
         yEdge2 = yIterationOffset + depthOffset + boxDepth + holeOffsetY
+        yOutWall = yIterationOffset + depthOffset + boxDepth + 24
       end
 
       #find center point from 2 edge points
@@ -205,29 +224,37 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
       pipeLineOut = boxThickness * 6
       pipeLineIn = 3
 
+      # point of pipe inside box
+      xInWall = xCenter
+      yInWall = yCenter
+
+      # point of pipe outside box
+      m = Math.tan(theta)
+      xOutWall = ((yOutWall - yCenter) / m) + xCenter
+
     end
 
     # create pipe
 
-    #hole in box
-    extrudeCyl(xCenter, yCenter, zCenter, holeDiameter, theta, extrudeDepth, $hole_punch)
+    xCenterPipeIn = xCenter + (Math.sin(theta + Math::PI) * pipeLineIn)
+    yCenterPipeIn = yCenter + (Math.cos(theta + Math::PI) * pipeLineIn)
 
-    #make pipe
-    xCenterPipe1 = xCenter + (Math.sin(theta + Math::PI) * pipeLineIn)
-    yCenterPipe1 = yCenter + (Math.cos(theta + Math::PI) * pipeLineIn)
-
-    xCenterPipe2 = xCenter + (Math.sin(theta) * pipeLineOut)
-    yCenterPipe2 = yCenter + (Math.cos(theta) * pipeLineOut)
+    xCenterPipeOut = xCenter + (Math.sin(theta) * pipeLineOut)
+    yCenterPipeOut = yCenter + (Math.cos(theta) * pipeLineOut)
 
     zCenterPipe = (pipeInvert * 12) + (pipeDiameter / 2)
 
-    $make_pipe = entities.add_group
+    pipeDepth = Math.sqrt((xCenterPipeIn - xCenterPipeOut)**2 + (yCenterPipeIn - yCenterPipeOut)**2)
+
+    extrudeCyl(xCenterPipeOut, yCenterPipeOut, zCenter, holeDiameter, theta, pipeDepth + 3, $hole_punch)
+
     # extrudeCyl(xCenterPipe1, yCenterPipe1, zCenterPipe, (pipeDiameter + 2), theta, pipeExtrudeDepth, $pipe)
     # extrudeCyl(xCenterPipe2, yCenterPipe2, zCenterPipe + 0.001, pipeDiameter, theta, pipeExtrudeDepth, $make_pipe)
 
     # create pipe invert line
-    pipeInvertPoint1 = Geom::Point3d.new(xCenterPipe1, yCenterPipe1, (pipeInvert * 12))
-    pipeInvertPoint2 = Geom::Point3d.new(xCenterPipe2, yCenterPipe2, (pipeInvert * 12))
+    $make_pipe = entities.add_group
+    pipeInvertPoint1 = Geom::Point3d.new(xCenterPipeIn, yCenterPipeIn, (pipeInvert * 12))
+    pipeInvertPoint2 = Geom::Point3d.new(xCenterPipeOut, yCenterPipeOut, (pipeInvert * 12))
     $make_pipe.entities.add_line(pipeInvertPoint1, pipeInvertPoint2)
   end
 
@@ -275,13 +302,21 @@ end
 toolbar = UI::Toolbar.new "Junction Box"
 cmd = UI::Command.new("Batch Create CSV") {
 # Select and read file
-file = UI.openpanel('CSV File', 'c:\\')
-#fileFormat = UI.inputbox(["Which format is your file in? \n1: \n2: \n3:"])
-table = CSV.read(file)
-boxNum = table.length
+file = UI.openpanel('Select File', 'c:\\')
+fileFormat = UI.inputbox(["Which format is your file in? \n1: CSV \n2: Excel"])
+if fileFormat[0].to_f == 1
+  table = CSV.read(file)
+  boxNum = table.length
+  basename = File.basename(file, ".csv").to_s
+elsif fileFormat[0].to_f == 2
+  excel = WIN32OLE.new('Excel.Application')
+  workbook = excel.Workbooks.Open(file)
+  worksheet = workbook.Worksheets(1)
+  basename = File.basename(file, ".xlsx").to_s
+end
+
 # Create component save directory
 pathName = file.to_s
-basename = File.basename(file, ".csv").to_s
 pathName.slice!(File.basename(file).to_s)
 fileDir = pathName + basename
 unless File.directory?(fileDir)
@@ -291,46 +326,95 @@ end
 xIterationOffset = 0
 yIterationOffset = 0
 
-# Create each box
-for i in 1..(boxNum - 1) do
-  # Identify variables
-  jbName = table[i][0]
-  topElevation = table[i][1].to_f
-  baseWidth = table[i][2].to_f
-  baseDepth = table[i][3].to_f
-  baseHeight = table[i][4].to_f
-  
-  boxWidth = table[i][5].to_f
-  boxDepth = table[i][6].to_f
-  boxHeight = table[i][7].to_f
-  boxThickness = table[i][8].to_f
-  
-  lidHoleWidth = table[i][9].to_f
-  lidHoleDepth = table[i][10].to_f
-  lidHeight = table[i][11].to_f
-  
-  holeInputs = 7
-  numHoles = (table[i].length - 12) / holeInputs
-  holeValues = []
-  for n in 0..(numHoles-1) do
-    unless table[i][12+(n*holeInputs)].to_f == 0 && table[i][13+(n*holeInputs)].to_f == 0 && table[i][14+(n*holeInputs)].to_f == 0 && table[i][15+(n*holeInputs)].to_f == 0 && table[i][16+(n*holeInputs)].to_f == 0 && table[i][17+(n*holeInputs)].to_f == 0 && table[i][18+(n*holeInputs)].to_f == 0
-      holeValues = [[table[i][12+(n*holeInputs)].to_f, table[i][13+(n*holeInputs)].to_f, table[i][14+(n*holeInputs)].to_f, table[i][15+(n*holeInputs)].to_f, table[i][16+(n*holeInputs)].to_f, table[i][17+(n*holeInputs)].to_f, table[i][18+(n*holeInputs)].to_f]].unshift(*holeValues)
+
+if fileFormat[0].to_f == 1
+  # Create each box
+  for i in 1..(boxNum - 1) do
+    # Identify variables
+    jbName = table[i][0]
+    topElevation = table[i][1].to_f
+    baseWidth = table[i][2].to_f
+    baseDepth = table[i][3].to_f
+    baseHeight = table[i][4].to_f
+    
+    boxWidth = table[i][5].to_f
+    boxDepth = table[i][6].to_f
+    boxHeight = table[i][7].to_f
+    boxThickness = table[i][8].to_f
+    
+    lidHoleWidth = table[i][9].to_f
+    lidHoleDepth = table[i][10].to_f
+    lidHeight = table[i][11].to_f
+
+    holeInputs = 7
+    numHoles = (table[i].length - 12) / holeInputs
+    holeValues = []
+    for n in 0..(numHoles-1) do
+      unless table[i][12+(n*holeInputs)].to_f == 0 && table[i][13+(n*holeInputs)].to_f == 0 && table[i][14+(n*holeInputs)].to_f == 0 && table[i][15+(n*holeInputs)].to_f == 0 && table[i][16+(n*holeInputs)].to_f == 0 && table[i][17+(n*holeInputs)].to_f == 0 && table[i][18+(n*holeInputs)].to_f == 0
+        holeValues = [[table[i][12+(n*holeInputs)].to_f, table[i][13+(n*holeInputs)].to_f, table[i][14+(n*holeInputs)].to_f, table[i][15+(n*holeInputs)].to_f, table[i][16+(n*holeInputs)].to_f, table[i][17+(n*holeInputs)].to_f, table[i][18+(n*holeInputs)].to_f]].unshift(*holeValues)
+      end
+    end
+
+    # Make junction box
+    main(fileDir, jbName, topElevation, xIterationOffset, yIterationOffset, 
+    baseWidth, baseDepth, baseHeight, 
+    boxWidth, boxDepth, boxHeight, boxThickness, 
+    lidHoleWidth, lidHoleDepth, lidHeight, 
+    holeValues)
+
+    xIterationOffset = xIterationOffset + baseWidth + 36
+    if i % 10 == 0
+      xIterationOffset = 0
+      yIterationOffset = yIterationOffset + baseDepth + 72
     end
   end
-  # Make junction box
-  main(fileDir, jbName, topElevation, xIterationOffset, yIterationOffset, 
-        baseWidth, baseDepth, baseHeight, 
-        boxWidth, boxDepth, boxHeight, boxThickness, 
-        lidHoleWidth, lidHoleDepth, lidHeight, 
-        holeValues)
-  
-  xIterationOffset = xIterationOffset + baseWidth + 36
-  if i % 10 == 0
-    xIterationOffset = 0
-    yIterationOffset = yIterationOffset + baseDepth + 72
-  end
 
-end
+elsif fileFormat[0].to_f == 2
+  row = 2
+  loop do
+    jbName = worksheet.Cells(row, 1).Value.to_s
+    topElevation = worksheet.Cells(row, 2).Value.to_f
+    baseWidth = worksheet.Cells(row, 3).Value.to_f
+    baseDepth = worksheet.Cells(row, 4).Value.to_f
+    baseHeight = worksheet.Cells(row, 5).Value.to_f
+    
+    boxWidth = worksheet.Cells(row, 6).Value.to_f
+    boxDepth = worksheet.Cells(row, 7).Value.to_f
+    boxHeight = worksheet.Cells(row, 8).Value.to_f
+    boxThickness = worksheet.Cells(row, 9).Value.to_f
+    
+    lidHoleWidth = worksheet.Cells(row, 10).Value.to_f
+    lidHoleDepth = worksheet.Cells(row, 11).Value.to_f
+    lidHeight = worksheet.Cells(row, 12).Value.to_f
+
+    if topElevation == 0 && baseWidth == 0 && baseDepth == 0 && baseHeight == 0 && boxWidth == 0 && boxDepth == 0 && boxHeight == 0 && boxThickness == 0 && lidHoleWidth == 0 && lidHoleDepth == 0 && lidHeight == 0
+      break
+    end
+
+    holeInputs = 7
+    holeValues = []
+    for n in 0..10
+      unless worksheet.Cells(row, 13+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 14+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 15+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 16+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 17+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 18+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 19+(n*holeInputs)).Value.to_f == 0
+        holeValues = [[worksheet.Cells(row, 13+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 14+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 15+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 16+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 17+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 18+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 19+(n*holeInputs)).Value.to_f]].unshift(*holeValues)
+      end
+    end
+
+    # Make junction box
+    main(fileDir, jbName, topElevation, xIterationOffset, yIterationOffset, 
+          baseWidth, baseDepth, baseHeight, 
+          boxWidth, boxDepth, boxHeight, boxThickness, 
+          lidHoleWidth, lidHoleDepth, lidHeight, 
+          holeValues)
+    
+    xIterationOffset = xIterationOffset + baseWidth + 36
+    if row % 10 == 0
+      xIterationOffset = 0
+      yIterationOffset = yIterationOffset + baseDepth + 72
+    end
+
+  row = row + 1
+  end
+end 
 }
 
 # Define toolbar button
