@@ -128,7 +128,7 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
       pipeLineIn = boxThickness * 3
 
       # point of pipe inside box
-      m = Math.tan(theta)
+      m = Math.cos(theta) / Math.sin(theta)
       xInWall = ((yInWall - yCenter) / m) + xCenter
 
       # point of pipe outside box
@@ -177,7 +177,7 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
 
 
       # point of pipe inside box
-      m = Math.tan(theta)
+      m = Math.cos(theta) / Math.sin(theta)
       yInWall = (m * (xInWall - xCenter)) + yCenter
 
       # point of pipe outside box
@@ -229,7 +229,7 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
       yInWall = yCenter
 
       # point of pipe outside box
-      m = Math.tan(theta)
+      m = Math.cos(theta) / Math.sin(theta)
       xOutWall = ((yOutWall - yCenter) / m) + xCenter
 
     end
@@ -244,17 +244,17 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
 
     zCenterPipe = (pipeInvert * 12) + (pipeDiameter / 2)
 
-    pipeDepth = Math.sqrt((xCenterPipeIn - xCenterPipeOut)**2 + (yCenterPipeIn - yCenterPipeOut)**2)
+    pipeDepth = Math.sqrt((xInWall - xOutWall)**2 + (yInWall - yOutWall)**2)
 
-    extrudeCyl(xCenterPipeOut, yCenterPipeOut, zCenter, holeDiameter, theta, pipeDepth + 3, $hole_punch)
+    extrudeCyl(xOutWall, yOutWall, zCenter, holeDiameter, theta, pipeDepth + 3, $hole_punch)
 
     # extrudeCyl(xCenterPipe1, yCenterPipe1, zCenterPipe, (pipeDiameter + 2), theta, pipeExtrudeDepth, $pipe)
     # extrudeCyl(xCenterPipe2, yCenterPipe2, zCenterPipe + 0.001, pipeDiameter, theta, pipeExtrudeDepth, $make_pipe)
 
     # create pipe invert line
     $make_pipe = entities.add_group
-    pipeInvertPoint1 = Geom::Point3d.new(xCenterPipeIn, yCenterPipeIn, (pipeInvert * 12))
-    pipeInvertPoint2 = Geom::Point3d.new(xCenterPipeOut, yCenterPipeOut, (pipeInvert * 12))
+    pipeInvertPoint1 = Geom::Point3d.new(xInWall, yInWall, (pipeInvert * 12))
+    pipeInvertPoint2 = Geom::Point3d.new(xOutWall, yOutWall, (pipeInvert * 12))
     $make_pipe.entities.add_line(pipeInvertPoint1, pipeInvertPoint2)
   end
 
