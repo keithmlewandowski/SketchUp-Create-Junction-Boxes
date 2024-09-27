@@ -28,12 +28,12 @@ def JunctionBox.extrudeCyl(x1, y1, z1, diameter, theta, extrudeDepth, cylGroup)
 end
 
 # Main junction box creation function
-def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIterationOffset, 
-                    baseWidth, baseDepth, baseHeight, 
-                    boxWidth, boxDepth, boxHeight, boxThickness, 
-                    lidHoleWidth, lidHoleDepth, lidHeight, 
-                    holeValues)
-  
+def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yIterationOffset, 
+                      baseWidth, baseDepth, baseHeight, 
+                      boxWidth, boxDepth, boxHeight, boxThickness, 
+                      lidHoleWidth, lidHoleDepth, lidHeight, lidHoleXOffset, lidHoleYOffset,
+                      holeValues)
+
   elevationOffset = (topElevation * 12) - lidHeight - boxHeight - baseHeight                  
   
   # Make Base
@@ -263,7 +263,8 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
 
 
   # Make Lid
-  if lidHoleWidth != 0 && lidHoleDepth != 0 && lidHeight != 0   ### -- TODO: Deal with blank cells -- ###
+  if lidHoleWidth == 0 && lidHoleDepth == 0 && lidHeight == 0   ### -- TODO: Deal with blank cells -- ###
+  else
     #model.commit_operation
     model = Sketchup.active_model
     #model.start_operation('Create JB Lid', true)
@@ -271,18 +272,78 @@ def JunctionBox.main(fileDir, jbName, topElevation, xIterationOffset, yIteration
     widthOffset = (baseWidth-boxWidth) / 2
     depthOffset = (baseDepth-boxDepth) / 2
 
-    # full lid rectangle
-    extrudeRect(widthOffset + xIterationOffset, depthOffset + yIterationOffset,
-                widthOffset + boxWidth + xIterationOffset, depthOffset + boxDepth + yIterationOffset,
-                baseHeight + boxHeight + elevationOffset, lidHeight, $group)
 
-    lidWidthOffset = ((boxWidth - (2 * boxThickness)) - lidHoleWidth) / 2
-    lidDepthOffset = ((boxDepth - (2 * boxThickness)) - lidHoleDepth)
+    $lid = entities.add_group
+    if jbType == "Type 18" || jbType == "Type 18 Curb Inlet MOD" || jbType == "Type 18 Curb Inlet"
+      curbOffset = UI.inputbox(["How far past the box does the lid go?"])[0].to_f
+      
+      curbOffsetBottom = -curbOffset
+      curbOffsetTop = curbOffset
+
+    elsif jbType == "Type 17 Left Curb Inlet"
+      curbOffset = UI.inputbox(["How far past the box does the lid go?"])[0].to_f
+
+      curbOffsetBottom = 0
+      curbOffsetTop = curbOffset
+
+    elsif jbType == "Type 17 Right Curb Inlet"
+      curbOffset = UI.inputbox(["How far past the box does the lid go?"])[0].to_f
+
+      curbOffsetBottom = -curbOffset
+      curbOffsetTop = 0
+
+    else
+      curbOffsetBottom = 0
+      curbOffsetTop = 0
+    end
+
+    # full lid rectangle
+
+    extrudeRect(widthOffset + xIterationOffset, depthOffset + yIterationOffset + curbOffsetBottom,
+                widthOffset + boxWidth + xIterationOffset, depthOffset + boxDepth + yIterationOffset + curbOffsetTop,
+                baseHeight + boxHeight + elevationOffset, lidHeight, $lid)
 
     # remove lid hole
-    extrudeRect(widthOffset + boxThickness + lidWidthOffset + xIterationOffset, depthOffset + boxThickness + lidDepthOffset + yIterationOffset,
-                widthOffset + boxWidth - boxThickness - lidWidthOffset + xIterationOffset, depthOffset + boxDepth - boxThickness + yIterationOffset,
-                baseHeight + boxHeight + elevationOffset, -lidHeight, $group)
+
+    # x coordinate of center point
+    if lidHoleXOffset >= 0 # from left side
+      xHoleCenter = xIterationOffset + widthOffset + lidHoleXOffset
+    elsif lidHoleXOffset < 0 # from right side
+      xHoleCenter = xIterationOffset + widthOffset + boxWidth + lidHoleXOffset
+    end
+    
+    # y coordinate of center point
+    if lidHoleYOffset >= 0 
+      yHoleCenter = yIterationOffset + depthOffset + lidHoleYOffset + curbOffsetBottom
+    elsif lidHoleYOffset < 0
+      yHoleCenter = yIterationOffset + depthOffset + boxWidth + lidHoleYOffset + curbOffsetTop
+    end
+
+    zHoleCenter = baseHeight + boxHeight + elevationOffset + lidHeight + 1
+
+    $lidPunch = entities.add_group
+
+    #circular hole
+    if lidHoleWidth != 0 && lidHoleDepth == 0
+      center_point = Geom::Point3d.new(xHoleCenter, yHoleCenter, zHoleCenter)
+      normal_vector = Geom::Vector3d.new(0,0,-1)
+      radius = lidHoleWidth / 2
+
+      hole_circle = $lidPunch.entities.add_circle(center_point, normal_vector, radius)
+      face = $lidPunch.entities.add_face(hole_circle)
+      face.pushpull(lidHeight + 1)
+
+    #rectangular hole
+    else
+      extrudeRect(xHoleCenter - (lidHoleWidth / 2), yHoleCenter - (lidHoleDepth / 2),
+                  xHoleCenter + (lidHoleWidth / 2), yHoleCenter + (lidHoleDepth / 2),
+                  zHoleCenter, -lidHeight - 1, $lidPunch
+                  )
+    end
+
+    $lidPunch.subtract($lid)
+
+
   end
 
   elevationLine = entities.add_group
@@ -332,34 +393,37 @@ if fileFormat[0].to_f == 1
   for i in 1..(boxNum - 1) do
     # Identify variables
     jbName = table[i][0]
-    topElevation = table[i][1].to_f
-    baseWidth = table[i][2].to_f
-    baseDepth = table[i][3].to_f
-    baseHeight = table[i][4].to_f
+    jbType = table[i][1].to_s
+    topElevation = table[i][2].to_f
+    baseWidth = table[i][3].to_f
+    baseDepth = table[i][4].to_f
+    baseHeight = table[i][5].to_f
     
-    boxWidth = table[i][5].to_f
-    boxDepth = table[i][6].to_f
-    boxHeight = table[i][7].to_f
-    boxThickness = table[i][8].to_f
+    boxWidth = table[i][6].to_f
+    boxDepth = table[i][7].to_f
+    boxHeight = table[i][8].to_f
+    boxThickness = table[i][9].to_f
     
-    lidHoleWidth = table[i][9].to_f
-    lidHoleDepth = table[i][10].to_f
-    lidHeight = table[i][11].to_f
+    lidHoleWidth = table[i][10].to_f
+    lidHoleDepth = table[i][11].to_f
+    lidHeight = table[i][12].to_f
+    lidHoleXOffset = table[i][13].to_f
+    lidHoleYOffset = table[i][14].to_f
 
     holeInputs = 7
-    numHoles = (table[i].length - 12) / holeInputs
+    numHoles = (table[i].length - 15) / holeInputs
     holeValues = []
     for n in 0..(numHoles-1) do
-      unless table[i][12+(n*holeInputs)].to_f == 0 && table[i][13+(n*holeInputs)].to_f == 0 && table[i][14+(n*holeInputs)].to_f == 0 && table[i][15+(n*holeInputs)].to_f == 0 && table[i][16+(n*holeInputs)].to_f == 0 && table[i][17+(n*holeInputs)].to_f == 0 && table[i][18+(n*holeInputs)].to_f == 0
-        holeValues = [[table[i][12+(n*holeInputs)].to_f, table[i][13+(n*holeInputs)].to_f, table[i][14+(n*holeInputs)].to_f, table[i][15+(n*holeInputs)].to_f, table[i][16+(n*holeInputs)].to_f, table[i][17+(n*holeInputs)].to_f, table[i][18+(n*holeInputs)].to_f]].unshift(*holeValues)
+      unless table[i][15+(n*holeInputs)].to_f == 0 && table[i][16+(n*holeInputs)].to_f == 0 && table[i][17+(n*holeInputs)].to_f == 0 && table[i][18+(n*holeInputs)].to_f == 0 && table[i][19+(n*holeInputs)].to_f == 0 && table[i][20+(n*holeInputs)].to_f == 0 && table[i][21+(n*holeInputs)].to_f == 0
+        holeValues = [[table[i][15+(n*holeInputs)].to_f, table[i][16+(n*holeInputs)].to_f, table[i][17+(n*holeInputs)].to_f, table[i][18+(n*holeInputs)].to_f, table[i][19+(n*holeInputs)].to_f, table[i][20+(n*holeInputs)].to_f, table[i][21+(n*holeInputs)].to_f]].unshift(*holeValues)
       end
     end
 
     # Make junction box
-    main(fileDir, jbName, topElevation, xIterationOffset, yIterationOffset, 
+    main(fileDir, jbName, jbType, topElevation, xIterationOffset, yIterationOffset, 
     baseWidth, baseDepth, baseHeight, 
     boxWidth, boxDepth, boxHeight, boxThickness, 
-    lidHoleWidth, lidHoleDepth, lidHeight, 
+    lidHoleWidth, lidHoleDepth, lidHeight, lidHoleXOffset, lidHoleYOffset,
     holeValues)
 
     xIterationOffset = xIterationOffset + baseWidth + 36
@@ -373,19 +437,22 @@ elsif fileFormat[0].to_f == 2
   row = 2
   loop do
     jbName = worksheet.Cells(row, 1).Value.to_s
-    topElevation = worksheet.Cells(row, 2).Value.to_f
-    baseWidth = worksheet.Cells(row, 3).Value.to_f
-    baseDepth = worksheet.Cells(row, 4).Value.to_f
-    baseHeight = worksheet.Cells(row, 5).Value.to_f
+    jbType = worksheet.Cells(row, 2).Value.to_s
+    topElevation = worksheet.Cells(row, 3).Value.to_f
+    baseWidth = worksheet.Cells(row, 4).Value.to_f
+    baseDepth = worksheet.Cells(row, 5).Value.to_f
+    baseHeight = worksheet.Cells(row, 6).Value.to_f
     
-    boxWidth = worksheet.Cells(row, 6).Value.to_f
-    boxDepth = worksheet.Cells(row, 7).Value.to_f
-    boxHeight = worksheet.Cells(row, 8).Value.to_f
-    boxThickness = worksheet.Cells(row, 9).Value.to_f
+    boxWidth = worksheet.Cells(row, 7).Value.to_f
+    boxDepth = worksheet.Cells(row, 8).Value.to_f
+    boxHeight = worksheet.Cells(row, 9).Value.to_f
+    boxThickness = worksheet.Cells(row, 10).Value.to_f
     
-    lidHoleWidth = worksheet.Cells(row, 10).Value.to_f
-    lidHoleDepth = worksheet.Cells(row, 11).Value.to_f
-    lidHeight = worksheet.Cells(row, 12).Value.to_f
+    lidHoleWidth = worksheet.Cells(row, 11).Value.to_f
+    lidHoleDepth = worksheet.Cells(row, 12).Value.to_f
+    lidHeight = worksheet.Cells(row, 13).Value.to_f
+    lidXOffset = worksheet.Cells(row, 14).Value.to_f
+    lidYOffset = worksheet.Cells(row, 15).Value.to_f
 
     if topElevation == 0 && baseWidth == 0 && baseDepth == 0 && baseHeight == 0 && boxWidth == 0 && boxDepth == 0 && boxHeight == 0 && boxThickness == 0 && lidHoleWidth == 0 && lidHoleDepth == 0 && lidHeight == 0
       break
@@ -394,17 +461,17 @@ elsif fileFormat[0].to_f == 2
     holeInputs = 7
     holeValues = []
     for n in 0..10
-      unless worksheet.Cells(row, 13+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 14+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 15+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 16+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 17+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 18+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 19+(n*holeInputs)).Value.to_f == 0
-        holeValues = [[worksheet.Cells(row, 13+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 14+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 15+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 16+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 17+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 18+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 19+(n*holeInputs)).Value.to_f]].unshift(*holeValues)
+      unless worksheet.Cells(row, 16+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 17+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 18+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 19+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 20+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 21+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 22+(n*holeInputs)).Value.to_f == 0
+        holeValues = [[worksheet.Cells(row, 16+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 17+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 18+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 19+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 20+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 21+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 22+(n*holeInputs)).Value.to_f]].unshift(*holeValues)
       end
     end
 
     # Make junction box
-    main(fileDir, jbName, topElevation, xIterationOffset, yIterationOffset, 
-          baseWidth, baseDepth, baseHeight, 
-          boxWidth, boxDepth, boxHeight, boxThickness, 
-          lidHoleWidth, lidHoleDepth, lidHeight, 
-          holeValues)
+    main(fileDir, jbName, jbType, topElevation, xIterationOffset, yIterationOffset, 
+    baseWidth, baseDepth, baseHeight, 
+    boxWidth, boxDepth, boxHeight, boxThickness, 
+    lidHoleWidth, lidHoleDepth, lidHeight, lidHoleXOffset, lidHoleYOffset,
+    holeValues)
     
     xIterationOffset = xIterationOffset + baseWidth + 36
     if row % 10 == 0
