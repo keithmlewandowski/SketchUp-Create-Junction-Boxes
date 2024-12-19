@@ -4,7 +4,7 @@ require 'win32ole'
 
 module JunctionBox 
 
-$debug = 1
+$debug = 0
 
 
 # Function to extrude any size rectangle in the vertical direction
@@ -33,7 +33,7 @@ end
 # Main junction box creation function
 def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yIterationOffset, 
                       baseWidth, baseDepth, baseHeight, 
-                      firstTierWidth, firstTierDepth, firstTierHeight, firstTierWallThickness,
+                      firstTierWidth, firstTierDepth, firstTierHeight, firstTierWallThickness, firstTierAlignment,
                       boxWidth, boxDepth, boxHeight, boxThickness, 
                       lidHoleWidth, lidHoleDepth, lidHeight, lidHoleXOffset, lidHoleYOffset,
                       holeValues)
@@ -124,11 +124,10 @@ def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yI
   if boxWidth == 0 && boxDepth == 0 && boxHeight == 0
   else
     if ifFirstTier == 1
-      riserAlignment = UI.inputbox([jbName + "\nWhere is the top riser aligned? \n1: Top \n2: Bottom \n3: Left \n4: Right \n5: Center"])
       baseHeight = baseHeight + 0.001
       boxHeight = boxHeight - 0.001
       # top
-      if riserAlignment[0].to_f == 1
+      if firstTierAlignment == "Top" || firstTierAlignment == "top"
         widthOffset = (baseWidth-boxWidth) / 2
         if baseIfCircle == 1
           if boxIfCircle == 1
@@ -144,7 +143,7 @@ def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yI
           end
         end
       # bottom
-      elsif riserAlignment[0].to_f == 2
+      elsif firstTierAlignment == "Bottom" || firstTierAlignment == "bottom"
         widthOffset = (baseWidth-boxWidth) / 2
         if baseIfCircle == 1
           depthOffset = (firstTierWallThickness - boxThickness) + ((baseWidth - firstTierWidth) / 2)
@@ -152,7 +151,7 @@ def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yI
           depthOffset = (firstTierWallThickness - boxThickness) + ((baseDepth - firstTierDepth) / 2)
         end
       # left
-      elsif riserAlignment[0].to_f == 3
+      elsif firstTierAlignment == "Left" || firstTierAlignment == "left"
         if baseIfCircle == 1
           if boxIfCircle == 1
             depthOffset = (baseWidth-boxWidth) / 2
@@ -168,7 +167,7 @@ def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yI
         end
         widthOffset = (firstTierWallThickness - boxThickness) + ((baseWidth - firstTierWidth) / 2)
       # right
-      elsif riserAlignment[0].to_f == 4
+      elsif firstTierAlignment == "Right" || firstTierAlignment == "right"
         if baseIfCircle == 1
           if boxIfCircle == 1
             depthOffset = (baseWidth-boxWidth) / 2
@@ -184,7 +183,23 @@ def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yI
         end
         widthOffset = baseWidth - boxWidth - (firstTierWallThickness - boxThickness) - ((baseWidth - firstTierWidth) / 2)
       # center
-      elsif riserAlignment[0].to_f == 5
+      elsif firstTierAlignment == "Center" || firstTierAlignment == "center"
+        widthOffset = (baseWidth-boxWidth) / 2
+        if baseIfCircle == 1
+          if boxIfCircle == 1
+            depthOffset = (baseWidth-boxWidth) / 2
+          else
+            depthOffset = (baseWidth-boxDepth) / 2
+          end
+        else
+          if boxIfCircle == 1
+            depthOffset = (baseDepth-boxWidth) / 2
+          else
+            depthOffset = (baseDepth-boxDepth) / 2
+          end
+        end
+      else
+        warning.append("Incorrect first tier alignment value")
         widthOffset = (baseWidth-boxWidth) / 2
         if baseIfCircle == 1
           if boxIfCircle == 1
@@ -207,7 +222,7 @@ def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yI
 
     if boxIfCircle == 1
       # box inner circle
-      center_point = Geom::Point3d.new(xIterationOffset + widthOffset + (boxWidth / 2), yIterationOffset + widthOffset + (boxWidth / 2), elevationOffset + baseHeight + boxHeight + firstTierHeight)
+      center_point = Geom::Point3d.new(xIterationOffset + widthOffset + (boxWidth / 2), yIterationOffset + depthOffset + (boxWidth / 2), elevationOffset + baseHeight + boxHeight + firstTierHeight)
       radius = (boxWidth - (2 * boxThickness)) / 2
 
       hole_base = $box.entities.add_circle(center_point, normal_vector, radius)
@@ -216,7 +231,7 @@ def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yI
       
       # box outer circle
       
-      center_point = Geom::Point3d.new(xIterationOffset + widthOffset + (boxWidth / 2), yIterationOffset + widthOffset + (boxWidth / 2), elevationOffset + baseHeight + boxHeight + firstTierHeight)
+      center_point = Geom::Point3d.new(xIterationOffset + widthOffset + (boxWidth / 2), yIterationOffset + depthOffset + (boxWidth / 2), elevationOffset + baseHeight + boxHeight + firstTierHeight)
       normal_vector = Geom::Vector3d.new(0,0,1)
       radius = boxWidth / 2
 
@@ -240,6 +255,7 @@ def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yI
     
   $hole_punch = entities.add_group
   $hole_punch_base = entities.add_group
+
 
   boxWidth_Top = boxWidth
   boxDepth_Top = boxDepth
@@ -265,13 +281,13 @@ def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yI
 
   #### Make Pipes ####
   for i in 0..(holeValues.length - 1) do 
-    pipeAngle = holeValues[i][0].to_f
-    holeUp = holeValues[i][1].to_f
-    holeOffsetX = holeValues[i][2].to_f
-    holeOffsetY = holeValues[i][3].to_f
-    holeDiameter = holeValues[i][4].to_f 
-    pipeInvert = holeValues[i][5].to_f
-    pipeDiameter = holeValues[i][6].to_f
+    pipeInvert = holeValues[i][0].to_f
+    pipeDiameter = holeValues[i][1].to_f
+    holeDiameter = holeValues[i][2].to_f
+    holeUp = holeValues[i][3].to_f
+    pipeAngle = holeValues[i][4].to_f 
+    holeOffsetX = holeValues[i][5].to_f
+    holeOffsetY = holeValues[i][6].to_f
 
     # Calculate the center point coordinates of the pipe
     theta = pipeAngle * Math::PI / 180
@@ -325,16 +341,21 @@ def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yI
 
       if holeUp < firstTierHeight
         pipeInBottom = 1
+        if $hole_punch_base.valid? == false
+          $hole_punch_base = entities.add_group
+        end 
         hole_outer = $hole_punch_base.entities.add_circle(center_point, normal_vector, radius)
         face = $hole_punch_base.entities.add_face(hole_outer)
         face.pushpull(24)
       else
         pipeInTop = 1
+        if $hole_punch.valid? == false
+          $hole_punch = entities.add_group
+        end 
         hole_outer = $hole_punch.entities.add_circle(center_point, normal_vector, radius)
         face = $hole_punch.entities.add_face(hole_outer)
         face.pushpull(24)
       end
-
 
 
     elsif boxIfCircle == 0
@@ -507,13 +528,26 @@ def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yI
 
       zCenterPipe = (pipeInvert * 12) + (pipeDiameter / 2)
 
+
       pipeDepth = Math.sqrt((xInWall - xOutWall)**2 + (yInWall - yOutWall)**2)
       if holeUp < firstTierHeight
         pipeInBottom = 1
         extrudeCyl(xOutWall, yOutWall, zCenter, holeDiameter, theta, pipeDepth + 3, $hole_punch_base)
       else
         pipeInTop = 1
-        extrudeCyl(xOutWall, yOutWall, zCenter, holeDiameter, theta, pipeDepth + 3, $hole_punch)
+        if firstTierHeight == 0
+          extrudeCyl(xOutWall, yOutWall, zCenter, holeDiameter, theta, pipeDepth + 3, $hole_punch)      
+        else firstTierHeight != 0
+          hole_punch_top = entities.add_group
+          center_point = Geom::Point3d.new(xOutWall, yOutWall, zCenter)
+          normal_vector = Geom::Vector3d.new(Math.sin(theta), Math.cos(theta), 0)
+          radius = (holeDiameter / 2)
+
+          hole_outer = hole_punch_top.entities.add_circle(center_point, normal_vector, radius)
+          face = hole_punch_top.entities.add_face(hole_outer)
+          face.pushpull(-(pipeDepth + 3))
+          $box = hole_punch_top.subtract($box)
+        end
       end
     end
     # extrudeCyl(xCenterPipe1, yCenterPipe1, zCenterPipe, (pipeDiameter + 2), theta, pipeExtrudeDepth, $pipe)
@@ -536,7 +570,7 @@ def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yI
     
   end
 
-  if pipeInTop == 1
+  if pipeInTop == 1 && firstTierHeight == 0
     $hole_punch.subtract($box)
   end
   if pipeInBottom == 1
@@ -573,25 +607,36 @@ def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yI
 
 
     if boxIfCircle == 1
-      # make lid hole
+      # make lid
+      circleLid = entities.add_group
+
+      center_point = Geom::Point3d.new(xIterationOffset + widthOffset + (boxWidth / 2), yIterationOffset + depthOffset + (boxWidth / 2), elevationOffset + baseHeight + boxHeight + lidHeight + firstTierHeight)
+      normal_vector = Geom::Vector3d.new(0,0,1)
+      radius = boxWidth / 2
+
+      hole_base = $lid.entities.add_circle(center_point, normal_vector, radius)
+      face = $lid.entities.add_face(hole_base)
+      face.pushpull(-lidHeight)
+      
+      # remove lid hole
 
       # x coordinate of center point
       if lidHoleXOffset >= 0 # from left side
-        xHoleCenter = xIterationOffset + widthOffset + lidHoleXOffset
+        xHoleCenter = xIterationOffset + widthOffset + lidHoleXOffset + (boxWidth / 2)
       elsif lidHoleXOffset < 0 # from right side
-        xHoleCenter = xIterationOffset + widthOffset + boxWidth + lidHoleXOffset
+        xHoleCenter = xIterationOffset + widthOffset + boxWidth + lidHoleXOffset + (boxWidth / 2)
       end
       
       # y coordinate of center point
       if lidHoleYOffset >= 0 
-        yHoleCenter = yIterationOffset + widthOffset + lidHoleYOffset
+        yHoleCenter = yIterationOffset + depthOffset + lidHoleYOffset + (boxWidth / 2)
       elsif lidHoleYOffset < 0
-        yHoleCenter = yIterationOffset + widthOffset + boxWidth + lidHoleYOffset
+        yHoleCenter = yIterationOffset + depthOffset + boxWidth + lidHoleYOffset + (boxWidth / 2)
       end
 
       zHoleCenter = baseHeight + boxHeight + elevationOffset + lidHeight + firstTierHeight
 
-      $lid = entities.add_group
+      $lidPunch = entities.add_group
 
       #circular hole
       if lidHoleWidth != 0 && lidHoleDepth == 0
@@ -599,30 +644,19 @@ def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yI
         normal_vector = Geom::Vector3d.new(0,0,1)
         radius = lidHoleWidth / 2
 
-        hole_circle = $lid.entities.add_circle(center_point, normal_vector, radius)
-        face_hole = $lid.entities.add_face(hole_circle)
+        hole_circle = $lidPunch.entities.add_circle(center_point, normal_vector, radius)
+        face_hole = $lidPunch.entities.add_face(hole_circle)
         face_hole.pushpull(-lidHeight)
 
       #rectangular hole
       else
         extrudeRect(xHoleCenter - (lidHoleWidth / 2), yHoleCenter - (lidHoleDepth / 2),
                     xHoleCenter + (lidHoleWidth / 2), yHoleCenter + (lidHoleDepth / 2),
-                    zHoleCenter, -lidHeight - 1, $lid
+                    zHoleCenter + 1, -lidHeight - 1, $lidPunch
                     )
       end
 
-      # make lid
-      circleLid = entities.add_group
-
-      center_point = Geom::Point3d.new(xIterationOffset + widthOffset + (boxWidth / 2), yIterationOffset + widthOffset + (boxWidth / 2), elevationOffset + baseHeight + boxHeight + lidHeight)
-      normal_vector = Geom::Vector3d.new(0,0,1)
-      radius = boxWidth / 2
-
-      hole_base = $lid.entities.add_circle(center_point, normal_vector, radius)
-      face = $lid.entities.add_face(hole_base)
-      face.pushpull(-lidHeight)
-
-      face_hole.pushpull(-lidHeight)
+      $lid = $lidPunch.subtract($lid)
 
     elsif boxIfCircle == 0
       if jbType == "Type 18" || jbType == "Type 18 Curb Inlet MOD" || jbType == "Type 18 Curb Inlet"
@@ -809,17 +843,18 @@ elsif fileFormat[0].to_f == 2
     firstTierDepth = worksheet.Cells(row, 8).Value.to_f
     firstTierHeight = worksheet.Cells(row, 9).Value.to_f
     firstTierWallThickness = worksheet.Cells(row, 10).Value.to_f
+    firstTierAlignment = worksheet.Cells(row, 11).Value.to_s
     
-    boxWidth = worksheet.Cells(row, 11).Value.to_f
-    boxDepth = worksheet.Cells(row, 12).Value.to_f
-    boxHeight = worksheet.Cells(row, 13).Value.to_f
-    boxThickness = worksheet.Cells(row, 14).Value.to_f
+    boxWidth = worksheet.Cells(row, 12).Value.to_f
+    boxDepth = worksheet.Cells(row, 13).Value.to_f
+    boxHeight = worksheet.Cells(row, 14).Value.to_f
+    boxThickness = worksheet.Cells(row, 15).Value.to_f
     
-    lidHoleWidth = worksheet.Cells(row, 15).Value.to_f
-    lidHoleDepth = worksheet.Cells(row, 16).Value.to_f
-    lidHeight = worksheet.Cells(row, 17).Value.to_f
-    lidHoleXOffset = worksheet.Cells(row, 18).Value.to_f
-    lidHoleYOffset = worksheet.Cells(row, 19).Value.to_f
+    lidHoleWidth = worksheet.Cells(row, 16).Value.to_f
+    lidHoleDepth = worksheet.Cells(row, 17).Value.to_f
+    lidHeight = worksheet.Cells(row, 18).Value.to_f
+    lidHoleXOffset = worksheet.Cells(row, 19).Value.to_f
+    lidHoleYOffset = worksheet.Cells(row, 20).Value.to_f
 
     if topElevation == 0 && baseWidth == 0 && baseDepth == 0 && baseHeight == 0 && boxWidth == 0 && boxDepth == 0 && boxHeight == 0 && boxThickness == 0 && lidHoleWidth == 0 && lidHoleDepth == 0 && lidHeight == 0
       break
@@ -828,27 +863,49 @@ elsif fileFormat[0].to_f == 2
     holeInputs = 7
     holeValues = []
     for n in 0..10
-      unless worksheet.Cells(row, 20+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 21+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 22+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 23+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 24+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 25+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 26+(n*holeInputs)).Value.to_f == 0
-        holeValues = [[worksheet.Cells(row, 20+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 21+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 22+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 23+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 24+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 25+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 26+(n*holeInputs)).Value.to_f]].unshift(*holeValues)
+      unless worksheet.Cells(row, 21+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 22+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 23+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 24+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 25+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 26+(n*holeInputs)).Value.to_f == 0 && worksheet.Cells(row, 27+(n*holeInputs)).Value.to_f == 0
+        holeValues = [[worksheet.Cells(row, 21+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 22+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 23+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 24+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 25+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 26+(n*holeInputs)).Value.to_f, worksheet.Cells(row, 27+(n*holeInputs)).Value.to_f]].unshift(*holeValues)
       end
     end
 
     # Make junction box
     warnings = main(fileDir, jbName, jbType, topElevation, xIterationOffset, yIterationOffset, 
-    baseWidth, baseDepth, baseHeight, 
-    firstTierWidth, firstTierDepth, firstTierHeight, firstTierWallThickness,
-    boxWidth, boxDepth, boxHeight, boxThickness, 
-    lidHoleWidth, lidHoleDepth, lidHeight, lidHoleXOffset, lidHoleYOffset,
-    holeValues)
+                    baseWidth, baseDepth, baseHeight, 
+                    firstTierWidth, firstTierDepth, firstTierHeight, firstTierWallThickness, firstTierAlignment,
+                    boxWidth, boxDepth, boxHeight, boxThickness, 
+                    lidHoleWidth, lidHoleDepth, lidHeight, lidHoleXOffset, lidHoleYOffset,
+                    holeValues)
     
-    for j in 0..warnings.length
-      worksheet.Cells(row, 55+j).Value = warnings[j]
+    if warnings.length > 0
+      for j in 0..warnings.length
+        worksheet.Cells(row, 55+j).Value = warnings[j]
+      end
+      worksheet.Cells(row, 1).Interior.Color = 6
+
+      if File.file?(fileDir + "/" + basename + "_warnings" + ".txt")
+        File.write((fileDir + "/" + basename + "_warnings" + ".txt"), (jbName + " " + warnings.to_s + "\n"), mode: 'a+')
+      else
+        File.write((fileDir + "/" + basename + "_warnings" + ".txt"), (jbName + " " + warnings.to_s + "\n"))
+      end
+
     end
 
-    xIterationOffset = xIterationOffset + baseWidth + 36
-    if row % 10 == 0
+    xIterationOffset = xIterationOffset + baseWidth + 120
+    
+    if defined?(rowMaxBaseDepth)
+      if baseDepth > rowMaxBaseDepth
+        rowMaxBaseDepth = baseDepth
+      end
+    else
+      rowMaxBaseDepth = baseDepth
+    end
+
+    if row % 10 == 1
       xIterationOffset = 0
-      yIterationOffset = yIterationOffset + baseDepth + 72
+      yIterationOffset = yIterationOffset + rowMaxBaseDepth + 72
+      if baseDepth == 0
+        yIterationOffset = yIterationOffset + baseWidth
+      end
     end
 
   row = row + 1
