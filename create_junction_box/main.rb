@@ -126,29 +126,43 @@ def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yI
     if ifFirstTier == 1
       baseHeight = baseHeight + 0.001
       boxHeight = boxHeight - 0.001
+
+      # dimension from edge of first tier to inside of box based on manufacturing
+      if firstTierWidth == 144 && boxWidth == 60
+        secondTierOffset = 15 - boxThickness
+      elsif firstTierWidth == 86 && boxWidth == 60
+        secondTierOffset = 12 - boxThickness
+      elsif firstTierWidth == 100 && boxWidth == 60
+        secondTierOffset = 13 - boxThickness
+      elsif firstTierWidth == 114 && boxWidth == 60
+        secondTierOffset = 14 - boxThickness
+      else
+        secondTierOffset = firstTierWallThickness - boxThickness
+      end
+
       # top
       if firstTierAlignment == "Top" || firstTierAlignment == "top"
         widthOffset = (baseWidth-boxWidth) / 2
         if baseIfCircle == 1
           if boxIfCircle == 1
-            depthOffset = baseWidth - boxWidth - (firstTierWallThickness - boxThickness) - ((baseWidth - firstTierWidth) / 2)
+            depthOffset = baseWidth - boxWidth - (secondTierOffset) - ((baseWidth - firstTierWidth) / 2)
           else
-            depthOffset = baseWidth - boxDepth - (firstTierWallThickness - boxThickness) - ((baseWidth - firstTierWidth) / 2)
+            depthOffset = baseWidth - boxDepth - (secondTierOffset) - ((baseWidth - firstTierWidth) / 2)
           end
         else
           if boxIfCircle == 1
-            depthOffset = baseDepth - boxWidth - (firstTierWallThickness - boxThickness) - ((baseDepth - firstTierDepth) / 2)
+            depthOffset = baseDepth - boxWidth - (secondTierOffset) - ((baseDepth - firstTierDepth) / 2)
           else
-            depthOffset = baseDepth - boxDepth - (firstTierWallThickness - boxThickness) - ((baseDepth - firstTierDepth) / 2)
+            depthOffset = baseDepth - boxDepth - (secondTierOffset) - ((baseDepth - firstTierDepth) / 2)
           end
         end
       # bottom
       elsif firstTierAlignment == "Bottom" || firstTierAlignment == "bottom"
         widthOffset = (baseWidth-boxWidth) / 2
         if baseIfCircle == 1
-          depthOffset = (firstTierWallThickness - boxThickness) + ((baseWidth - firstTierWidth) / 2)
+          depthOffset = (secondTierOffset) + ((baseWidth - firstTierWidth) / 2)
         else
-          depthOffset = (firstTierWallThickness - boxThickness) + ((baseDepth - firstTierDepth) / 2)
+          depthOffset = (secondTierOffset) + ((baseDepth - firstTierDepth) / 2)
         end
       # left
       elsif firstTierAlignment == "Left" || firstTierAlignment == "left"
@@ -165,7 +179,7 @@ def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yI
             depthOffset = (baseDepth-boxDepth) / 2
           end
         end
-        widthOffset = (firstTierWallThickness - boxThickness) + ((baseWidth - firstTierWidth) / 2)
+        widthOffset = (secondTierOffset) + ((baseWidth - firstTierWidth) / 2)
       # right
       elsif firstTierAlignment == "Right" || firstTierAlignment == "right"
         if baseIfCircle == 1
@@ -181,7 +195,7 @@ def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yI
             depthOffset = (baseDepth-boxDepth) / 2
           end
         end
-        widthOffset = baseWidth - boxWidth - (firstTierWallThickness - boxThickness) - ((baseWidth - firstTierWidth) / 2)
+        widthOffset = baseWidth - boxWidth - (secondTierOffset) - ((baseWidth - firstTierWidth) / 2)
       # center
       elsif firstTierAlignment == "Center" || firstTierAlignment == "center"
         widthOffset = (baseWidth-boxWidth) / 2
