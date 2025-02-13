@@ -128,14 +128,29 @@ def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yI
       boxHeight = boxHeight - 0.001
 
       # dimension from edge of first tier to inside of box based on manufacturing
-      if firstTierWidth == 144 && boxWidth == 60
-        secondTierOffset = 15 - boxThickness
-      elsif firstTierWidth == 86 && boxWidth == 60
+      if firstTierWidth == 86 && boxWidth == 60
         secondTierOffset = 12 - boxThickness
       elsif firstTierWidth == 100 && boxWidth == 60
         secondTierOffset = 13 - boxThickness
       elsif firstTierWidth == 114 && boxWidth == 60
         secondTierOffset = 14 - boxThickness
+      elsif firstTierWidth == 144 && boxWidth == 60
+        secondTierOffset = 15 - boxThickness
+      
+      elsif firstTierWidth == 100 && boxWidth == 48
+        secondTierOffset = 13 - boxThickness
+      elsif firstTierWidth == 114 && boxWidth == 48
+        secondTierOffset = 14 - boxThickness
+
+      elsif firstTierWidth == 86 && boxWidth == 72
+        secondTierOffset = 13 - boxThickness
+      elsif firstTierWidth == 100 && boxWidth == 72
+        secondTierOffset = 14 - boxThickness
+      elsif firstTierWidth == 114 && boxWidth == 72
+        secondTierOffset = 15 - boxThickness      
+      elsif firstTierWidth == 144 && boxWidth == 72
+        secondTierOffset = 16 - boxThickness
+
       else
         secondTierOffset = firstTierWallThickness - boxThickness
       end
@@ -336,8 +351,8 @@ def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yI
 
     if boxIfCircle == 1
       theta = -theta
-      xCenter = xIterationOffset + (baseWidth / 2)
-      yCenter = yIterationOffset + (baseWidth / 2)
+      xCenter = xIterationOffset + widthOffset + (boxWidth / 2)
+      yCenter = yIterationOffset + depthOffset + (boxWidth / 2)
       zCenter = elevationOffset + baseHeight + holeUp + (holeDiameter / 2)
 
       innerRadius = (boxWidth - (2 * boxThickness)) / 2
@@ -369,6 +384,7 @@ def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yI
         hole_outer = $hole_punch.entities.add_circle(center_point, normal_vector, radius)
         face = $hole_punch.entities.add_face(hole_outer)
         face.pushpull(24)
+        $box = $hole_punch.subtract($box)
       end
 
 
@@ -636,16 +652,16 @@ def JunctionBox.main(fileDir, jbName, jbType, topElevation, xIterationOffset, yI
 
       # x coordinate of center point
       if lidHoleXOffset >= 0 # from left side
-        xHoleCenter = xIterationOffset + widthOffset + lidHoleXOffset + (boxWidth / 2)
+        xHoleCenter = xIterationOffset + widthOffset + lidHoleXOffset
       elsif lidHoleXOffset < 0 # from right side
-        xHoleCenter = xIterationOffset + widthOffset + boxWidth + lidHoleXOffset + (boxWidth / 2)
+        xHoleCenter = xIterationOffset + widthOffset + boxWidth + lidHoleXOffset
       end
       
       # y coordinate of center point
       if lidHoleYOffset >= 0 
-        yHoleCenter = yIterationOffset + depthOffset + lidHoleYOffset + (boxWidth / 2)
+        yHoleCenter = yIterationOffset + depthOffset + lidHoleYOffset
       elsif lidHoleYOffset < 0
-        yHoleCenter = yIterationOffset + depthOffset + boxWidth + lidHoleYOffset + (boxWidth / 2)
+        yHoleCenter = yIterationOffset + depthOffset + boxWidth + lidHoleYOffset
       end
 
       zHoleCenter = baseHeight + boxHeight + elevationOffset + lidHeight + firstTierHeight
